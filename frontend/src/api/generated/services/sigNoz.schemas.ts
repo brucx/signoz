@@ -9437,6 +9437,10 @@ export interface PromotetypesWrappedIndexDTO {
 
 export interface PromotetypesPromotePathDTO {
 	/**
+	 * @type string
+	 */
+	context?: string;
+	/**
 	 * @type array
 	 */
 	indexes?: PromotetypesWrappedIndexDTO[];
@@ -9448,6 +9452,10 @@ export interface PromotetypesPromotePathDTO {
 	 * @type boolean
 	 */
 	promote?: boolean;
+	/**
+	 * @type string
+	 */
+	signal?: string;
 }
 
 export interface Querybuildertypesv5AggregationMetaDTO {
@@ -12562,10 +12570,6 @@ export type GetOrgPreference200 = {
 export type UpdateOrgPreferencePathParameters = {
 	name: string;
 };
-export type ListPromotedPathsPathParameters = {
-	telemetrySignal: string;
-	context: string;
-};
 export type ListPromotedPaths200 = {
 	/**
 	 * @type array,null
@@ -12577,10 +12581,6 @@ export type ListPromotedPaths200 = {
 	status: string;
 };
 
-export type PromotePathsPathParameters = {
-	telemetrySignal: string;
-	context: string;
-};
 export type ListRoles200 = {
 	/**
 	 * @type array
