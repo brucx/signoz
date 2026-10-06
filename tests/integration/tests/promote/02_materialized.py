@@ -33,6 +33,16 @@ def test_index_materialized_paths(
 
     resp = requests.post(
         signoz.self.host_configs["8080"].get(MATERIALIZED_PATH),
+        params={"signal": "logs"},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30,
+    )
+    assert resp.status_code == HTTPStatus.OK, resp.text
+    assert not [path for path in resp.json()["data"] if path["path"] == "materialized.probe"]
+    assert not signoz.telemetrystore.conn.query(PROBE_INDEX_EXPRS_QUERY).result_rows
+
+    resp = requests.post(
+        signoz.self.host_configs["8080"].get(MATERIALIZED_PATH),
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )

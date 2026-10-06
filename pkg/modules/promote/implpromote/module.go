@@ -7,12 +7,20 @@ import (
 	schemamigrator "github.com/SigNoz/signoz-otel-collector/cmd/signozschemamigrator/schema_migrator"
 	"github.com/SigNoz/signoz/pkg/errors"
 	"github.com/SigNoz/signoz/pkg/modules/promote"
+	"github.com/SigNoz/signoz/pkg/query-service/constants"
 	"github.com/SigNoz/signoz/pkg/telemetrystore"
 	"github.com/SigNoz/signoz/pkg/types/ctxtypes"
 	"github.com/SigNoz/signoz/pkg/types/instrumentationtypes"
 	"github.com/SigNoz/signoz/pkg/types/promotetypes"
 	"github.com/SigNoz/signoz/pkg/types/telemetrytypes"
 )
+
+// materializedIndex is the index /api/v2/traces/fields builds on a materialized column.
+var materializedIndex = promotetypes.WrappedIndex{
+	FieldDataType: telemetrytypes.FieldDataTypeString,
+	Type:          constants.DefaultLogSkipIndexType,
+	Granularity:   constants.DefaultLogSkipIndexGranularity,
+}
 
 var (
 	CodeFailedToCreateIndex        = errors.MustNewCode("failed_to_create_index_promoted_paths")
@@ -123,10 +131,10 @@ func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes
 		paths := []*promotetypes.PromotePath{}
 		names := []string{}
 		for _, key := range keys {
-			if key.FieldContext != target.Entry.FieldContext {
+			if key.FieldContext != target.Entry.FieldContext || target.IsDefaultMaterialized(key.Name) {
 				continue
 			}
-			if path, ok := promotetypes.NewMaterializedPromotePath(target, key); ok {
+			if path, ok := promotetypes.NewMaterializedPromotePath(target, key, materializedIndex); ok {
 				paths = append(paths, path)
 				names = append(names, path.Path)
 			}
@@ -144,7 +152,7 @@ func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes
 			existingByPath[index.Name] = append(existingByPath[index.Name], index)
 		}
 		for _, path := range paths {
-			path.DropExistingIndexes(existingByPath[path.Path])
+			path.SkipExistingIndexes(existingByPath[path.Path])
 			if len(path.Indexes) > 0 {
 				response = append(response, path)
 			}
