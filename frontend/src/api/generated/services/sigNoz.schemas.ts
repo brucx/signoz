@@ -9423,6 +9423,21 @@ export interface PrometheusSuccessResponseSchemaDTO {
 	warnings?: string[];
 }
 
+export interface PromotetypesIndexMaterializedPathsParamsDTO {
+	/**
+	 * @type string
+	 */
+	context?: string;
+	/**
+	 * @type boolean
+	 */
+	dryRun?: boolean;
+	/**
+	 * @type string
+	 */
+	signal?: string;
+}
+
 export interface PromotetypesWrappedIndexDTO {
 	fieldDataType?: TelemetrytypesFieldDataTypeDTO;
 	/**
@@ -12594,6 +12609,35 @@ export type ListPromotedPathsParams = {
 };
 
 export type ListPromotedPaths200 = {
+	/**
+	 * @type array,null
+	 */
+	data: PromotetypesPromotePathDTO[] | null;
+	/**
+	 * @type string
+	 */
+	status: string;
+};
+
+export type IndexMaterializedPathsParams = {
+	/**
+	 * @type string
+	 * @description undefined
+	 */
+	signal?: string;
+	/**
+	 * @type string
+	 * @description undefined
+	 */
+	context?: string;
+	/**
+	 * @type boolean
+	 * @description undefined
+	 */
+	dryRun?: boolean;
+};
+
+export type IndexMaterializedPaths200 = {
 	/**
 	 * @type array,null
 	 */

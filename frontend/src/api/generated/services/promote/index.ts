@@ -18,8 +18,11 @@ import type {
 } from 'react-query';
 
 import type {
+	IndexMaterializedPaths200,
+	IndexMaterializedPathsParams,
 	ListPromotedPaths200,
 	ListPromotedPathsParams,
+	PromotetypesIndexMaterializedPathsParamsDTO,
 	PromotetypesPromotePathDTO,
 	RenderErrorResponseDTO,
 } from '../sigNoz.schemas';
@@ -229,4 +232,105 @@ export const usePromotePaths = <
 	TContext
 > => {
 	return useMutation(getPromotePathsMutationOptions(options));
+};
+/**
+ * This endpoint indexes the JSON sub-columns of the string paths materialized as dedicated columns, copying each column's skip indexes or falling back to bloom_filter(0.01) with granularity 64. Default materialized paths and indexes already built are skipped. The signal and context query parameters narrow the domains, and dryRun returns the paths without creating indexes. Requires the update scope of each signal the filters select, or of every signal when none match.
+ * @summary Index materialized paths
+ */
+export const indexMaterializedPaths = (
+	promotetypesIndexMaterializedPathsParamsDTO?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>,
+	params?: IndexMaterializedPathsParams,
+	signal?: AbortSignal,
+) => {
+	return GeneratedAPIInstance<IndexMaterializedPaths200>({
+		url: `/api/v1/promoted_path/materialized`,
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		data: promotetypesIndexMaterializedPathsParamsDTO,
+		params,
+		signal,
+	});
+};
+
+export const getIndexMaterializedPathsMutationOptions = <
+	TError = ErrorType<RenderErrorResponseDTO>,
+	TContext = unknown,
+>(options?: {
+	mutation?: UseMutationOptions<
+		Awaited<ReturnType<typeof indexMaterializedPaths>>,
+		TError,
+		{
+			data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
+			params?: IndexMaterializedPathsParams;
+		},
+		TContext
+	>;
+}): UseMutationOptions<
+	Awaited<ReturnType<typeof indexMaterializedPaths>>,
+	TError,
+	{
+		data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
+		params?: IndexMaterializedPathsParams;
+	},
+	TContext
+> => {
+	const mutationKey = ['indexMaterializedPaths'];
+	const { mutation: mutationOptions } = options
+		? options.mutation &&
+			'mutationKey' in options.mutation &&
+			options.mutation.mutationKey
+			? options
+			: { ...options, mutation: { ...options.mutation, mutationKey } }
+		: { mutation: { mutationKey } };
+
+	const mutationFn: MutationFunction<
+		Awaited<ReturnType<typeof indexMaterializedPaths>>,
+		{
+			data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
+			params?: IndexMaterializedPathsParams;
+		}
+	> = (props) => {
+		const { data, params } = props ?? {};
+
+		return indexMaterializedPaths(data, params);
+	};
+
+	return { mutationFn, ...mutationOptions };
+};
+
+export type IndexMaterializedPathsMutationResult = NonNullable<
+	Awaited<ReturnType<typeof indexMaterializedPaths>>
+>;
+export type IndexMaterializedPathsMutationBody =
+	| BodyType<PromotetypesIndexMaterializedPathsParamsDTO>
+	| undefined;
+export type IndexMaterializedPathsMutationError =
+	ErrorType<RenderErrorResponseDTO>;
+
+/**
+ * @summary Index materialized paths
+ */
+export const useIndexMaterializedPaths = <
+	TError = ErrorType<RenderErrorResponseDTO>,
+	TContext = unknown,
+>(options?: {
+	mutation?: UseMutationOptions<
+		Awaited<ReturnType<typeof indexMaterializedPaths>>,
+		TError,
+		{
+			data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
+			params?: IndexMaterializedPathsParams;
+		},
+		TContext
+	>;
+}): UseMutationResult<
+	Awaited<ReturnType<typeof indexMaterializedPaths>>,
+	TError,
+	{
+		data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
+		params?: IndexMaterializedPathsParams;
+	},
+	TContext
+> => {
+	return useMutation(getIndexMaterializedPathsMutationOptions(options));
 };
