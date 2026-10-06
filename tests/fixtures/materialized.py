@@ -7,16 +7,12 @@ from fixtures import types
 # signal -> (database, local table, distributed table)
 MATERIALIZED_TABLES = {
     "traces": ("signoz_traces", "signoz_index_v3", "distributed_signoz_index_v3"),
-    "logs": ("signoz_logs", "logs_v2", "distributed_logs_v2"),
 }
 
 
 @pytest.fixture(name="materialize_attribute", scope="function")
 def materialize_attribute(signoz: types.SigNoz) -> Generator[Callable[[str, str], str]]:
-    """
-    Yields materialize(signal, key) that adds the legacy `attribute_string_<key>` column and returns its name.
-    Teardown drops the columns and every index whose expression mentions a materialized key.
-    """
+    """Teardown drops the columns and every index whose expression mentions a materialized key."""
     cluster = signoz.telemetrystore.env["SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_CLUSTER"]
     created: list[tuple[str, str, str]] = []
 

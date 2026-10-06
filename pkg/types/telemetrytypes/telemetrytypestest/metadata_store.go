@@ -374,7 +374,6 @@ func (m *MockMetadataStore) GetPromotedPaths(_ context.Context, _ telemetrytypes
 	return m.PromotedPathsMap, nil
 }
 
-// GetMaterializedKeys returns the stored materialized keys of the signal.
 func (m *MockMetadataStore) GetMaterializedKeys(_ context.Context, signal telemetrytypes.Signal) ([]*telemetrytypes.TelemetryFieldKey, error) {
 	keys := []*telemetrytypes.TelemetryFieldKey{}
 	for _, key := range m.MaterializedKeys {

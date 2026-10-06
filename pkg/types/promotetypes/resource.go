@@ -27,7 +27,7 @@ func PromotePathsResources(ec coretypes.ExtractorContext) ([]coretypes.ResourceW
 	return fieldResources(signals)
 }
 
-// FilteredSignalsResources resolves the field resources of the signals the signal and context query parameters select, or of all when none match.
+// FilteredSignalsResources falls back to every signal when the filters match none.
 func FilteredSignalsResources(ec coretypes.ExtractorContext) ([]coretypes.ResourceWithID, error) {
 	filters := ListPromotedPathsFilters{}
 	if ec.Request != nil {

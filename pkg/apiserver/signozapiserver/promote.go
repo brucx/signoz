@@ -59,7 +59,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		ID:                  "IndexMaterializedPaths",
 		Tags:                []string{"promote"},
 		Summary:             "Index materialized paths",
-		Description:         "This endpoint indexes the JSON sub-columns of the paths materialized as dedicated columns and returns the indexed paths; dryRun returns them without indexing. Requires the update scope of each signal the filters select, or of every signal when none match.",
+		Description:         "This endpoint indexes the JSON sub-columns of materialized paths and returns them. Requires the update scope of each signal the filters select.",
 		Request:             nil,
 		RequestQuery:        new(promotetypes.IndexMaterializedPathsParams),
 		RequestContentType:  "",

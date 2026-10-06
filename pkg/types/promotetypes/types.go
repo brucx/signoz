@@ -28,7 +28,6 @@ type PromotePath struct {
 	Indexes []WrappedIndex `json:"indexes,omitempty"`
 }
 
-// SkipIndexType is the family of a full index type such as ngrambf_v1(4, 1024, 2, 0).
 func (w WrappedIndex) SkipIndexType() (schemamigrator.IndexType, bool) {
 	for _, indexType := range []schemamigrator.IndexType{schemamigrator.IndexTypeNGramBF, schemamigrator.IndexTypeTokenBF, schemamigrator.IndexTypeMinMax, IndexTypeBloomFilter} {
 		if strings.HasPrefix(w.Type, string(indexType)) {

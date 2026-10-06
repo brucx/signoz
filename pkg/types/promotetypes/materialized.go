@@ -4,13 +4,12 @@ import (
 	"github.com/SigNoz/signoz/pkg/types/telemetrytypes"
 )
 
-// The index /api/v2/traces/fields builds on a materialized column.
 const (
 	DefaultMaterializedIndexType        = "bloom_filter(0.01)"
 	DefaultMaterializedIndexGranularity = 64
 )
 
-// defaultMaterializedPaths are materialized on every install by the schema migrator, keyed by signal/context.
+// defaultMaterializedPaths are keyed by signal/context.
 var defaultMaterializedPaths = map[string]map[string]struct{}{
 	"traces/attribute": {
 		"db.system":           {},
@@ -48,7 +47,6 @@ func (p *IndexMaterializedPathsParams) Filters() ListPromotedPathsFilters {
 	return ListPromotedPathsFilters{Signal: p.Signal, Context: p.Context}
 }
 
-// NewMaterializedPromotePath maps a materialized string path onto an unpromoted path carrying the default materialized index; ok is false for paths the target rejects.
 func NewMaterializedPromotePath(target Target, name string) (*PromotePath, bool) {
 	path := &PromotePath{
 		Signal:  target.Entry.Signal.StringValue(),
@@ -63,7 +61,7 @@ func NewMaterializedPromotePath(target Target, name string) (*PromotePath, bool)
 	return path, true
 }
 
-// SkipExistingIndexes removes from the indexes to create those whose type is already built on the path.
+// SkipExistingIndexes matches on index type, ignoring its parameters.
 func (i *PromotePath) SkipExistingIndexes(existing []telemetrytypes.TelemetryFieldKeySkipIndex) {
 	built := map[string]struct{}{}
 	for _, index := range existing {
@@ -82,7 +80,6 @@ func (i *PromotePath) SkipExistingIndexes(existing []telemetrytypes.TelemetryFie
 	i.Indexes = indexes
 }
 
-// IsDefaultMaterialized reports whether path is materialized on every install by the schema migrator.
 func (t Target) IsDefaultMaterialized(path string) bool {
 	_, ok := defaultMaterializedPaths[t.Entry.Signal.StringValue()+"/"+t.Entry.FieldContext.StringValue()][path]
 	return ok
