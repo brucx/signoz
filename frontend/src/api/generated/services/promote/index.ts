@@ -234,7 +234,7 @@ export const usePromotePaths = <
 	return useMutation(getPromotePathsMutationOptions(options));
 };
 /**
- * This endpoint indexes the JSON sub-columns of the paths materialized as dedicated columns and returns the indexed paths; dryRun returns them without indexing. Requires the update scope of each signal the filters select, or of every signal when none match.
+ * This endpoint indexes the JSON sub-columns of materialized paths and returns them. Requires the update scope of each signal the filters select.
  * @summary Index materialized paths
  */
 export const indexMaterializedPaths = (

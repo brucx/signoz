@@ -13469,10 +13469,8 @@ paths:
   /api/v1/promoted_path/materialized:
     post:
       deprecated: false
-      description: This endpoint indexes the JSON sub-columns of the paths materialized
-        as dedicated columns and returns the indexed paths; dryRun returns them without
-        indexing. Requires the update scope of each signal the filters select, or
-        of every signal when none match.
+      description: This endpoint indexes the JSON sub-columns of materialized paths
+        and returns them. Requires the update scope of each signal the filters select.
       operationId: IndexMaterializedPaths
       parameters:
       - in: query
