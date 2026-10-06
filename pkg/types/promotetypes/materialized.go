@@ -4,6 +4,12 @@ import (
 	"github.com/SigNoz/signoz/pkg/types/telemetrytypes"
 )
 
+// The index /api/v2/traces/fields builds on a materialized column.
+const (
+	DefaultMaterializedIndexType        = "bloom_filter(0.01)"
+	DefaultMaterializedIndexGranularity = 64
+)
+
 // defaultMaterializedPaths are materialized on every install by the schema migrator, keyed by signal/context.
 var defaultMaterializedPaths = map[string]map[string]struct{}{
 	"traces/attribute": {
@@ -42,19 +48,14 @@ func (p *IndexMaterializedPathsParams) Filters() ListPromotedPathsFilters {
 	return ListPromotedPathsFilters{Signal: p.Signal, Context: p.Context}
 }
 
-// NewMaterializedPromotePath maps a materialized string key onto an unpromoted path carrying index.
-// ok is false for non-string keys and paths the target rejects.
-func NewMaterializedPromotePath(target Target, key *telemetrytypes.TelemetryFieldKey, index WrappedIndex) (*PromotePath, bool) {
-	if key.FieldDataType != telemetrytypes.FieldDataTypeString {
-		return nil, false
-	}
-
+// NewMaterializedPromotePath maps a materialized string path onto an unpromoted path carrying the default materialized index; ok is false for paths the target rejects.
+func NewMaterializedPromotePath(target Target, name string) (*PromotePath, bool) {
 	path := &PromotePath{
 		Signal:  target.Entry.Signal.StringValue(),
 		Context: target.Entry.FieldContext.StringValue(),
-		Path:    key.Name,
+		Path:    name,
 		Promote: false,
-		Indexes: []WrappedIndex{index},
+		Indexes: []WrappedIndex{{FieldDataType: telemetrytypes.FieldDataTypeString, Type: DefaultMaterializedIndexType, Granularity: DefaultMaterializedIndexGranularity}},
 	}
 	if err := path.ValidateAndSetDefaults(target); err != nil {
 		return nil, false

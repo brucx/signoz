@@ -12,28 +12,23 @@ import (
 func TestNewMaterializedPromotePath(t *testing.T) {
 	testCases := []struct {
 		name   string
-		key    *telemetrytypes.TelemetryFieldKey
+		path   string
 		wantOK bool
 	}{
 		{
-			name:   "StringKey_DefaultIndex",
-			key:    &telemetrytypes.TelemetryFieldKey{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
+			name:   "BarePath_DefaultIndex",
+			path:   "user.id",
 			wantOK: true,
 		},
 		{
-			name: "NumberKey_Skipped",
-			key:  &telemetrytypes.TelemetryFieldKey{Name: "retry.count", FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeNumber},
-		},
-		{
-			name: "CardinalKey_Skipped",
-			key:  &telemetrytypes.TelemetryFieldKey{Name: "session.550e8400-e29b-41d4-a716-446655440000", FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
+			name: "CardinalPath_Rejected",
+			path: "session.550e8400-e29b-41d4-a716-446655440000",
 		},
 	}
 
-	index := WrappedIndex{FieldDataType: telemetrytypes.FieldDataTypeString, Type: "bloom_filter(0.01)", Granularity: 64}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			path, ok := NewMaterializedPromotePath(NewTracesAttributesTarget(), testCase.key, index)
+			path, ok := NewMaterializedPromotePath(NewTracesAttributesTarget(), testCase.path)
 			require.Equal(t, testCase.wantOK, ok)
 			if !ok {
 				return
@@ -41,7 +36,7 @@ func TestNewMaterializedPromotePath(t *testing.T) {
 			assert.Equal(t, &PromotePath{
 				Signal:  "traces",
 				Context: "attribute",
-				Path:    testCase.key.Name,
+				Path:    testCase.path,
 				Promote: false,
 				Indexes: []WrappedIndex{{FieldDataType: telemetrytypes.FieldDataTypeString, Type: "bloom_filter(0.01)", Granularity: 64, JSONDataType: telemetrytypes.String}},
 			}, path)
