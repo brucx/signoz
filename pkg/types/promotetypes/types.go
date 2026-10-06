@@ -9,6 +9,7 @@ import (
 	"github.com/SigNoz/signoz/pkg/types/telemetrytypes"
 )
 
+// TODO: use schemamigrator.IndexTypeBloomFilter once SigNoz/signoz-otel-collector#942 is released.
 const IndexTypeBloomFilter schemamigrator.IndexType = "bloom_filter"
 
 type WrappedIndex struct {
@@ -101,10 +102,6 @@ func (i *PromotePath) ValidateAndSetDefaults(target Target) error {
 		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "path must be a bare attribute name, without the `%s` prefix", prefix)
 	}
 
-	if i.Promote && !target.Promotable() {
-		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "%s %s paths can be indexed but not promoted", i.Signal, i.Context)
-	}
-
 	isCardinal := keycheck.IsCardinal(i.Path)
 	if isCardinal {
 		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "cardinal paths can not be promoted or indexed")
@@ -124,9 +121,6 @@ func (i *PromotePath) ValidateAndSetDefaults(target Target) error {
 		}
 		if !jsonDataType.IndexSupported {
 			return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "index is not supported for column type: %s", index.FieldDataType)
-		}
-		if target.IndexesStringsOnly() && jsonDataType.StringValue() != telemetrytypes.String.StringValue() {
-			return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "only string indexes are supported for %s %s paths", i.Signal, i.Context)
 		}
 
 		i.Indexes[idx].JSONDataType = jsonDataType

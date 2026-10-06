@@ -162,11 +162,10 @@ func buildListJSONIndexesQuery(cluster string, lookup telemetrytypes.JSONIndexLo
 
 	sb.Where(sb.Equal("database", lookup.DBName))
 	sb.Where(sb.Equal("table", lookup.LocalTableName))
-	prefixExprs := []string{sb.ILike("expr", fmt.Sprintf("%%%s%%", querybuilder.FormatValueForContains(lookup.BaseColumnPrefix)))}
-	if lookup.PromotedColumnPrefix != "" {
-		prefixExprs = append(prefixExprs, sb.ILike("expr", fmt.Sprintf("%%%s%%", querybuilder.FormatValueForContains(lookup.PromotedColumnPrefix))))
-	}
-	sb.Where(sb.Or(prefixExprs...))
+	sb.Where(sb.Or(
+		sb.ILike("expr", fmt.Sprintf("%%%s%%", querybuilder.FormatValueForContains(lookup.BaseColumnPrefix))),
+		sb.ILike("expr", fmt.Sprintf("%%%s%%", querybuilder.FormatValueForContains(lookup.PromotedColumnPrefix))),
+	))
 
 	filterExprs := []string{}
 	for _, filter := range filters {
@@ -208,17 +207,15 @@ func (t *telemetryMetaStore) ListJSONIndexes(ctx context.Context, lookup telemet
 			continue
 		}
 
-		var baseColumn, fieldName string
+		baseColumn := ""
+		fieldName := ""
 		switch {
 		case strings.HasPrefix(columnExpr, lookup.BaseColumnPrefix):
 			baseColumn = lookup.BaseColumnPrefix
 			fieldName = strings.TrimPrefix(columnExpr, lookup.BaseColumnPrefix)
-		case lookup.PromotedColumnPrefix != "" && strings.HasPrefix(columnExpr, lookup.PromotedColumnPrefix):
+		case strings.HasPrefix(columnExpr, lookup.PromotedColumnPrefix):
 			baseColumn = lookup.PromotedColumnPrefix
 			fieldName = strings.TrimPrefix(columnExpr, lookup.PromotedColumnPrefix)
-		default:
-			// the ILIKE prefix match also hits other columns' sub-paths, e.g. scope.attributes.* for attributes.
-			continue
 		}
 		fieldName = strings.ReplaceAll(fieldName, "`", "")
 

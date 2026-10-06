@@ -70,7 +70,7 @@ func TestPromotePathsResources(t *testing.T) {
 	}
 }
 
-func TestListPromotedPathsResources(t *testing.T) {
+func TestFilteredSignalsResources(t *testing.T) {
 	testCases := []struct {
 		name    string
 		query   string
@@ -107,7 +107,7 @@ func TestListPromotedPathsResources(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			request := httptest.NewRequest("GET", "/api/v1/promoted_path"+testCase.query, nil)
-			resources, err := ListPromotedPathsResources(coretypes.ExtractorContext{Request: request})
+			resources, err := FilteredSignalsResources(coretypes.ExtractorContext{Request: request})
 			if testCase.wantErr {
 				assert.Error(t, err)
 				return

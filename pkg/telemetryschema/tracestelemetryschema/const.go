@@ -46,8 +46,6 @@ const (
 	SpanAttributesColumn         = "attributes"
 	SpanAttributesPromotedColumn = "attributes_promoted"
 	SpanResourcesStringColumn    = "resources_string"
-	SpanResourceColumn           = "resource"
-	SpanScopeAttributesColumn    = "scope.attributes"
 )
 
 var (

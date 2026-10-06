@@ -48,7 +48,7 @@ func (m *module) ListPromotedPaths(ctx context.Context, filters promotetypes.Lis
 }
 
 func (m *module) listPromotedPaths(ctx context.Context, target promotetypes.Target) ([]promotetypes.PromotePath, error) {
-	promotedPaths, err := m.getPromotedPaths(ctx, target)
+	promotedPaths, err := m.metadataStore.GetPromotedPaths(ctx, target.Entry)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +188,7 @@ func (m *module) promotePaths(ctx context.Context, target promotetypes.Target, p
 		pathsStr = append(pathsStr, path.Path)
 	}
 
-	existingPromotedPaths, err := m.getPromotedPaths(ctx, target, pathsStr...)
+	existingPromotedPaths, err := m.metadataStore.GetPromotedPaths(ctx, target.Entry, pathsStr...)
 	if err != nil {
 		return err
 	}
@@ -237,13 +237,6 @@ func (m *module) promotePaths(ctx context.Context, target promotetypes.Target, p
 	}
 
 	return nil
-}
-
-func (m *module) getPromotedPaths(ctx context.Context, target promotetypes.Target, paths ...string) (map[string]bool, error) {
-	if !target.Promotable() {
-		return map[string]bool{}, nil
-	}
-	return m.metadataStore.GetPromotedPaths(ctx, target.Entry, paths...)
 }
 
 func (m *module) createIndexes(ctx context.Context, target promotetypes.Target, indexes []schemamigrator.Index) error {

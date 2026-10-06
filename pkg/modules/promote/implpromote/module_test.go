@@ -385,7 +385,7 @@ func TestListPromotedPaths(t *testing.T) {
 func TestIndexMaterializedPaths(t *testing.T) {
 	ctx := context.Background()
 	materializedKeys := []*telemetrytypes.TelemetryFieldKey{
-		{Name: "user.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: []telemetrytypes.TelemetryFieldKeySkipIndex{{IndexType: "tokenbf_v1(1024, 2, 0)", Granularity: 4}}},
+		{Name: "user.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
 		{Name: "http.route", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
 		{Name: "retry.count", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeNumber},
 		{Name: "k8s.pod.name", Signal: telemetrytypes.SignalLogs, FieldContext: telemetrytypes.FieldContextResource, FieldDataType: telemetrytypes.FieldDataTypeString},
@@ -402,25 +402,22 @@ func TestIndexMaterializedPaths(t *testing.T) {
 		{
 			name:      "DryRun_NoDDL",
 			params:    promotetypes.IndexMaterializedPathsParams{DryRun: true},
-			wantPaths: []string{"logs/resource/k8s.pod.name", "traces/attribute/user.id"},
+			wantPaths: []string{"traces/attribute/user.id"},
 		},
 		{
 			name:      "Run_IndexesBaseColumns",
-			wantPaths: []string{"logs/resource/k8s.pod.name", "traces/attribute/user.id"},
-			wantDDL: []string{
-				"`resource.k8s.pod.name_String_bloom_filter` resource.k8s.pod.name::String TYPE bloom_filter(0.01) GRANULARITY 64",
-				"`attributes.user.id_String_tokenbf_v1` attributes.user.id::String TYPE tokenbf_v1(1024, 2, 0) GRANULARITY 4",
-			},
+			wantPaths: []string{"traces/attribute/user.id"},
+			wantDDL:   []string{"`attributes.user.id_String_bloom_filter` attributes.user.id::String TYPE bloom_filter(0.01) GRANULARITY 64"},
 		},
 		{
 			name:      "SignalFilter_SkipsOtherSignals",
-			params:    promotetypes.IndexMaterializedPathsParams{Signal: "traces", DryRun: true},
-			wantPaths: []string{"traces/attribute/user.id"},
+			params:    promotetypes.IndexMaterializedPathsParams{Signal: "logs", DryRun: true},
+			wantPaths: []string{},
 		},
 		{
 			name:      "IndexAlreadyBuilt_Skipped",
 			params:    promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
-			existing:  []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "tokenbf_v1(512, 3, 0)"}},
+			existing:  []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "bloom_filter(0.05)"}},
 			wantPaths: []string{},
 		},
 	}

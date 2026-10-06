@@ -24,26 +24,13 @@ func (t Target) PromotedColumn() string { return t.Entry.ColumnName }
 
 func (t Target) BaseColumnPrefix() string { return t.BaseColumn + "." }
 
-// PromotedColumnPrefix is empty for a domain without a promoted column.
-func (t Target) PromotedColumnPrefix() string {
-	if !t.Promotable() {
-		return ""
-	}
-	return t.PromotedColumn() + "."
-}
+func (t Target) PromotedColumnPrefix() string { return t.PromotedColumn() + "." }
 
-func (t Target) Promotable() bool { return t.PromotedColumn() != "" }
-
-// IndexesStringsOnly holds for resource and scope, whose reads always cast to String.
-func (t Target) IndexesStringsOnly() bool {
-	return t.Entry.FieldContext == telemetrytypes.FieldContextResource || t.Entry.FieldContext == telemetrytypes.FieldContextScope
-}
-
-// IndexExpression folds logs body strings to lower case over assumeNotNull for
-// case-insensitive LIKE searches; other indexes are a bare type cast.
+// IndexExpression folds logs strings to lower case over assumeNotNull for
+// case-insensitive LIKE searches; traces indexes are a bare type cast.
 func (t Target) IndexExpression(column, path, jsonDataType string) string {
-	switch t.Entry.FieldContext {
-	case telemetrytypes.FieldContextBody:
+	switch t.Entry.Signal {
+	case telemetrytypes.SignalLogs:
 		return schemamigrator.JSONSubColumnIndexExpr(column, path, jsonDataType)
 	default:
 		return simpleJSONSubColumnIndexExpr(column, path, jsonDataType)
@@ -101,36 +88,6 @@ func NewTracesAttributesTarget() Target {
 	)
 }
 
-// NewTracesResourceTarget returns the spans resource domain, which is index-only.
-func NewTracesResourceTarget() Target {
-	return NewTarget(
-		telemetrytypes.EvolutionEntry{Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextResource},
-		tracestelemetryschema.DBName,
-		tracestelemetryschema.SpanIndexV3LocalTableName,
-		tracestelemetryschema.SpanResourceColumn,
-	)
-}
-
-// NewTracesScopeTarget returns the spans scope attributes domain, which is index-only.
-func NewTracesScopeTarget() Target {
-	return NewTarget(
-		telemetrytypes.EvolutionEntry{Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextScope},
-		tracestelemetryschema.DBName,
-		tracestelemetryschema.SpanIndexV3LocalTableName,
-		tracestelemetryschema.SpanScopeAttributesColumn,
-	)
-}
-
-// NewLogsResourceTarget returns the logs resource domain, which is index-only.
-func NewLogsResourceTarget() Target {
-	return NewTarget(
-		telemetrytypes.EvolutionEntry{Signal: telemetrytypes.SignalLogs, FieldContext: telemetrytypes.FieldContextResource},
-		logstelemetryschema.DBName,
-		logstelemetryschema.LogsV2LocalTableName,
-		logstelemetryschema.LogsV2ResourceColumn,
-	)
-}
-
 func NewTargetFromText(signal, context string) (Target, error) {
 	parsedSignal, ok := telemetrytypes.SignalFromText(signal)
 	if !ok {
@@ -150,10 +107,7 @@ func NewTargetFromText(signal, context string) (Target, error) {
 func Targets() []Target {
 	return []Target{
 		NewLogsBodyTarget(),
-		NewLogsResourceTarget(),
 		NewTracesAttributesTarget(),
-		NewTracesResourceTarget(),
-		NewTracesScopeTarget(),
 	}
 }
 
@@ -185,11 +139,8 @@ func simpleJSONSubColumnIndexExpr(column, path, jsonDataType string) string {
 // or promoted column prefix, or the logs body search alias, which is stripped
 // from queries before metadata lookup and can never match.
 func (t Target) reservedPathPrefix(path string) (string, bool) {
-	prefixes := []string{t.BaseColumnPrefix()}
-	if t.Promotable() {
-		prefixes = append(prefixes, t.PromotedColumnPrefix())
-	}
-	if t.Entry.FieldContext == telemetrytypes.FieldContextBody {
+	prefixes := []string{t.BaseColumnPrefix(), t.PromotedColumnPrefix()}
+	if t.Entry.Signal == telemetrytypes.SignalLogs {
 		prefixes = append(prefixes, telemetrytypes.BodyJSONStringSearchPrefix)
 	}
 	for _, prefix := range prefixes {

@@ -35,9 +35,6 @@ var defaultMaterializedPaths = map[string]map[string]struct{}{
 		"signoz.gen_ai.usage.output_tokens.cost":            {},
 		"signoz.gen_ai.usage.tokens.cost":                   {},
 	},
-	"traces/resource": {
-		"service.name": {},
-	},
 }
 
 type IndexMaterializedPathsParams struct {
@@ -50,29 +47,18 @@ func (p *IndexMaterializedPathsParams) Filters() ListPromotedPathsFilters {
 	return ListPromotedPathsFilters{Signal: p.Signal, Context: p.Context}
 }
 
-// NewMaterializedPromotePath maps a materialized string key onto an index-only path carrying its column's skip indexes, or the default index when it has none.
+// NewMaterializedPromotePath maps a materialized string key onto an unpromoted path carrying the default materialized index.
 // ok is false for non-string keys, default materialized keys and paths the target rejects.
 func NewMaterializedPromotePath(target Target, key *telemetrytypes.TelemetryFieldKey) (*PromotePath, bool) {
 	if key.FieldDataType != telemetrytypes.FieldDataTypeString || target.isDefaultMaterialized(key.Name) {
 		return nil, false
 	}
 
-	indexes := []WrappedIndex{}
-	for _, index := range key.Indexes {
-		wrapped := WrappedIndex{FieldDataType: telemetrytypes.FieldDataTypeString, Type: index.IndexType, Granularity: index.Granularity}
-		if _, ok := wrapped.SkipIndexType(); ok {
-			indexes = append(indexes, wrapped)
-		}
-	}
-	if len(indexes) == 0 {
-		indexes = append(indexes, WrappedIndex{FieldDataType: telemetrytypes.FieldDataTypeString, Type: DefaultMaterializedIndexType, Granularity: DefaultMaterializedIndexGranularity})
-	}
-
 	path := &PromotePath{
 		Signal:  target.Entry.Signal.StringValue(),
 		Context: target.Entry.FieldContext.StringValue(),
 		Path:    key.Name,
-		Indexes: indexes,
+		Indexes: []WrappedIndex{{FieldDataType: telemetrytypes.FieldDataTypeString, Type: DefaultMaterializedIndexType, Granularity: DefaultMaterializedIndexGranularity}},
 	}
 	if err := path.ValidateAndSetDefaults(target); err != nil {
 		return nil, false

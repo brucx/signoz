@@ -32,7 +32,6 @@ const (
 	LogsV2AttributesNumberColumn = "attributes_number"
 	LogsV2AttributesBoolColumn   = "attributes_bool"
 	LogsV2ResourcesStringColumn  = "resources_string"
-	LogsV2ResourceColumn         = "resource"
 	LogsV2ScopeStringColumn      = "scope_string"
 
 	BodyV2ColumnPrefix       = constants.BodyV2ColumnPrefix

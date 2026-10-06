@@ -50,7 +50,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		Verb:      coretypes.VerbList,
 		Category:  coretypes.ActionCategoryDataAccess,
 		Selector:  coretypes.WildcardSelector,
-		Resources: promotetypes.ListPromotedPathsResources,
+		Resources: promotetypes.FilteredSignalsResources,
 	}))).Methods(http.MethodGet).GetError(); err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		ID:                  "IndexMaterializedPaths",
 		Tags:                []string{"promote"},
 		Summary:             "Index materialized paths",
-		Description:         "This endpoint indexes the JSON sub-columns of the string paths materialized as dedicated columns, copying each column's skip indexes or falling back to bloom_filter(0.01) with granularity 64. Default materialized paths and indexes already built are skipped. The signal and context query parameters narrow the domains, and dryRun returns the paths without creating indexes. Requires the update scope of each signal the filters select, or of every signal when none match.",
+		Description:         "This endpoint indexes the JSON sub-columns of the paths materialized as dedicated columns and returns the indexed paths; dryRun returns them without indexing. Requires the update scope of each signal the filters select, or of every signal when none match.",
 		Request:             nil,
 		RequestQuery:        new(promotetypes.IndexMaterializedPathsParams),
 		RequestContentType:  "",
@@ -72,7 +72,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		Verb:      coretypes.VerbUpdate,
 		Category:  coretypes.ActionCategoryConfigurationChange,
 		Selector:  coretypes.WildcardSelector,
-		Resources: promotetypes.ListPromotedPathsResources,
+		Resources: promotetypes.FilteredSignalsResources,
 	}))).Methods(http.MethodPost).GetError(); err != nil {
 		return err
 	}
