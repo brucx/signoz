@@ -3,10 +3,13 @@ package promotetypes
 import (
 	"strings"
 
+	schemamigrator "github.com/SigNoz/signoz-otel-collector/cmd/signozschemamigrator/schema_migrator"
 	"github.com/SigNoz/signoz-otel-collector/pkg/keycheck"
 	"github.com/SigNoz/signoz/pkg/errors"
 	"github.com/SigNoz/signoz/pkg/types/telemetrytypes"
 )
+
+const IndexTypeBloomFilter schemamigrator.IndexType = "bloom_filter"
 
 type WrappedIndex struct {
 	JSONDataType  telemetrytypes.JSONDataType  `json:"-"`
@@ -22,6 +25,16 @@ type PromotePath struct {
 	Promote bool   `json:"promote,omitempty"`
 
 	Indexes []WrappedIndex `json:"indexes,omitempty"`
+}
+
+// SkipIndexType is the family of a full index type such as ngrambf_v1(4, 1024, 2, 0).
+func (w WrappedIndex) SkipIndexType() (schemamigrator.IndexType, bool) {
+	for _, indexType := range []schemamigrator.IndexType{schemamigrator.IndexTypeNGramBF, schemamigrator.IndexTypeTokenBF, schemamigrator.IndexTypeMinMax, IndexTypeBloomFilter} {
+		if strings.HasPrefix(w.Type, string(indexType)) {
+			return indexType, true
+		}
+	}
+	return "", false
 }
 
 func (i *PromotePath) Target() (Target, error) {
@@ -88,6 +101,10 @@ func (i *PromotePath) ValidateAndSetDefaults(target Target) error {
 		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "path must be a bare attribute name, without the `%s` prefix", prefix)
 	}
 
+	if i.Promote && !target.Promotable() {
+		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "%s %s paths can be indexed but not promoted", i.Signal, i.Context)
+	}
+
 	isCardinal := keycheck.IsCardinal(i.Path)
 	if isCardinal {
 		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "cardinal paths can not be promoted or indexed")
@@ -107,6 +124,9 @@ func (i *PromotePath) ValidateAndSetDefaults(target Target) error {
 		}
 		if !jsonDataType.IndexSupported {
 			return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "index is not supported for column type: %s", index.FieldDataType)
+		}
+		if target.IndexesStringsOnly() && jsonDataType.StringValue() != telemetrytypes.String.StringValue() {
+			return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "only string indexes are supported for %s %s paths", i.Signal, i.Context)
 		}
 
 		i.Indexes[idx].JSONDataType = jsonDataType

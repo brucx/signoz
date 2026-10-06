@@ -83,3 +83,31 @@ func (h *handler) ListPromotedPaths(w http.ResponseWriter, r *http.Request) {
 
 	render.Success(w, http.StatusOK, paths)
 }
+
+func (h *handler) IndexMaterializedPaths(w http.ResponseWriter, r *http.Request) {
+	// TODO(Nitya): Use in multi tenant setup
+	_, err := authtypes.ClaimsFromContext(r.Context())
+	if err != nil {
+		render.Error(w, errors.NewInternalf(errors.CodeInternal, "failed to get org id from context"))
+		return
+	}
+
+	var params promotetypes.IndexMaterializedPathsParams
+	if err := binding.Query.BindQuery(r.URL.Query(), &params); err != nil {
+		render.Error(w, err)
+		return
+	}
+	filters := params.Filters()
+	if err := filters.Validate(); err != nil {
+		render.Error(w, err)
+		return
+	}
+
+	paths, err := h.module.IndexMaterializedPaths(r.Context(), params)
+	if err != nil {
+		render.Error(w, err)
+		return
+	}
+
+	render.Success(w, http.StatusOK, paths)
+}

@@ -48,7 +48,7 @@ func (m *module) ListPromotedPaths(ctx context.Context, filters promotetypes.Lis
 }
 
 func (m *module) listPromotedPaths(ctx context.Context, target promotetypes.Target) ([]promotetypes.PromotePath, error) {
-	promotedPaths, err := m.metadataStore.GetPromotedPaths(ctx, target.Entry)
+	promotedPaths, err := m.getPromotedPaths(ctx, target)
 	if err != nil {
 		return nil, err
 	}
@@ -101,6 +101,65 @@ func (m *module) listPromotedPaths(ctx context.Context, target promotetypes.Targ
 	return response, nil
 }
 
+func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes.IndexMaterializedPathsParams) ([]*promotetypes.PromotePath, error) {
+	filters := params.Filters()
+	keysBySignal := map[string][]*telemetrytypes.TelemetryFieldKey{}
+	response := []*promotetypes.PromotePath{}
+	for _, target := range promotetypes.Targets() {
+		if !filters.MatchesTarget(target) {
+			continue
+		}
+
+		keys, ok := keysBySignal[target.Entry.Signal.StringValue()]
+		if !ok {
+			var err error
+			keys, err = m.metadataStore.GetMaterializedKeys(ctx, target.Entry.Signal)
+			if err != nil {
+				return nil, err
+			}
+			keysBySignal[target.Entry.Signal.StringValue()] = keys
+		}
+
+		paths := []*promotetypes.PromotePath{}
+		names := []string{}
+		for _, key := range keys {
+			if key.FieldContext != target.Entry.FieldContext {
+				continue
+			}
+			if path, ok := promotetypes.NewMaterializedPromotePath(target, key); ok {
+				paths = append(paths, path)
+				names = append(names, path.Path)
+			}
+		}
+		if len(paths) == 0 {
+			continue
+		}
+
+		existing, err := m.metadataStore.ListJSONIndexes(ctx, target.JSONIndexLookup(), names...)
+		if err != nil {
+			return nil, err
+		}
+		existingByPath := map[string][]telemetrytypes.TelemetryFieldKeySkipIndex{}
+		for _, index := range existing {
+			existingByPath[index.Name] = append(existingByPath[index.Name], index)
+		}
+		for _, path := range paths {
+			path.DropExistingIndexes(existingByPath[path.Path])
+			if len(path.Indexes) > 0 {
+				response = append(response, path)
+			}
+		}
+	}
+
+	if params.DryRun || len(response) == 0 {
+		return response, nil
+	}
+	if err := m.PromotePaths(ctx, response...); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
 func (m *module) PromotePaths(ctx context.Context, paths ...*promotetypes.PromotePath) error {
 	byTarget := map[promotetypes.Target][]*promotetypes.PromotePath{}
 	targets := []promotetypes.Target{}
@@ -129,7 +188,7 @@ func (m *module) promotePaths(ctx context.Context, target promotetypes.Target, p
 		pathsStr = append(pathsStr, path.Path)
 	}
 
-	existingPromotedPaths, err := m.metadataStore.GetPromotedPaths(ctx, target.Entry, pathsStr...)
+	existingPromotedPaths, err := m.getPromotedPaths(ctx, target, pathsStr...)
 	if err != nil {
 		return err
 	}
@@ -150,15 +209,8 @@ func (m *module) promotePaths(ctx context.Context, target promotetypes.Target, p
 			}
 
 			for _, index := range it.Indexes {
-				var typeIndex schemamigrator.IndexType
-				switch {
-				case strings.HasPrefix(index.Type, string(schemamigrator.IndexTypeNGramBF)):
-					typeIndex = schemamigrator.IndexTypeNGramBF
-				case strings.HasPrefix(index.Type, string(schemamigrator.IndexTypeTokenBF)):
-					typeIndex = schemamigrator.IndexTypeTokenBF
-				case strings.HasPrefix(index.Type, string(schemamigrator.IndexTypeMinMax)):
-					typeIndex = schemamigrator.IndexTypeMinMax
-				default:
+				typeIndex, ok := index.SkipIndexType()
+				if !ok {
 					return errors.NewInvalidInputf(errors.CodeInvalidInput, "invalid index type: %s", index.Type)
 				}
 				indexes = append(indexes, schemamigrator.Index{
@@ -185,6 +237,13 @@ func (m *module) promotePaths(ctx context.Context, target promotetypes.Target, p
 	}
 
 	return nil
+}
+
+func (m *module) getPromotedPaths(ctx context.Context, target promotetypes.Target, paths ...string) (map[string]bool, error) {
+	if !target.Promotable() {
+		return map[string]bool{}, nil
+	}
+	return m.metadataStore.GetPromotedPaths(ctx, target.Entry, paths...)
 }
 
 func (m *module) createIndexes(ctx context.Context, target promotetypes.Target, indexes []schemamigrator.Index) error {

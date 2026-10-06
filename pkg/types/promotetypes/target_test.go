@@ -47,6 +47,22 @@ func TestIndexExpression(t *testing.T) {
 			jsonDataType: "String",
 			want:         "attributes.`user-name`::String",
 		},
+		{
+			name:         "LogsResource_TypeCastOnly",
+			target:       NewLogsResourceTarget(),
+			column:       "resource",
+			path:         "k8s.pod.name",
+			jsonDataType: "String",
+			want:         "resource.k8s.pod.name::String",
+		},
+		{
+			name:         "TracesScope_UnderScopeAttributes",
+			target:       NewTracesScopeTarget(),
+			column:       "scope.attributes",
+			path:         "lib.version",
+			jsonDataType: "String",
+			want:         "scope.attributes.lib.version::String",
+		},
 	}
 
 	for _, testCase := range testCases {

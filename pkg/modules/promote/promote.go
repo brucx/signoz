@@ -10,9 +10,13 @@ import (
 type Module interface {
 	ListPromotedPaths(ctx context.Context, filters promotetypes.ListPromotedPathsFilters) ([]promotetypes.PromotePath, error)
 	PromotePaths(ctx context.Context, paths ...*promotetypes.PromotePath) error
+
+	// IndexMaterializedPaths indexes the JSON sub-columns of the paths materialized as dedicated columns, except the defaults, and returns the paths it indexes.
+	IndexMaterializedPaths(ctx context.Context, params promotetypes.IndexMaterializedPathsParams) ([]*promotetypes.PromotePath, error)
 }
 
 type Handler interface {
 	PromotePaths(w http.ResponseWriter, r *http.Request)
 	ListPromotedPaths(w http.ResponseWriter, r *http.Request)
+	IndexMaterializedPaths(w http.ResponseWriter, r *http.Request)
 }
