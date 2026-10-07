@@ -119,44 +119,34 @@ func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes
 		return nil, err
 	}
 
-	result := &promotetypes.IndexMaterializedPathsResult{Indexed: []*promotetypes.PromotePath{}, Skipped: []*promotetypes.SkippedMaterializedPath{}}
 	paths := []*promotetypes.PromotePath{}
 	names := []string{}
 	for _, key := range keys {
-		if key.FieldContext != target.Entry.FieldContext {
+		if key.FieldContext != target.Entry.FieldContext || len(key.Indexes) == 0 {
 			continue
 		}
-		switch {
-		case target.IsDefaultMaterialized(key.Name):
-			result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonDefaultMaterialized))
-		case key.FieldDataType != telemetrytypes.FieldDataTypeString:
-			result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonNotString))
-		case len(key.Indexes) == 0:
-			result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonColumnNotIndexed))
-		default:
-			path, err := promotetypes.NewMaterializedPromotePath(target, key.Name)
-			if err != nil {
-				m.settings.Logger().WarnContext(ctx, "materialized path is not indexable", slog.String("path", key.Name), errors.Attr(err))
-				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonInvalidPath))
-				continue
-			}
-			paths = append(paths, path)
-			names = append(names, path.Path)
+		path, err := promotetypes.NewMaterializedPromotePath(target, key)
+		if err != nil {
+			return nil, err
 		}
+		paths = append(paths, path)
+		names = append(names, path.Path)
 	}
 
+	result := &promotetypes.IndexMaterializedPathsResult{Indexed: []*promotetypes.PromotePath{}, Skipped: []*promotetypes.PromotePath{}}
 	if len(paths) > 0 {
 		existing, err := m.metadataStore.ListJSONIndexes(ctx, target.JSONIndexLookup(), names...)
 		if err != nil {
 			return nil, err
 		}
-		indexed := map[string]struct{}{}
+		existingByPath := map[string][]promotetypes.WrappedIndex{}
 		for _, index := range existing {
-			indexed[index.Name] = struct{}{}
+			existingByPath[index.Name] = append(existingByPath[index.Name], promotetypes.WrappedIndex{FieldDataType: index.FieldDataType, Type: index.IndexType, Granularity: index.Granularity})
 		}
 		for _, path := range paths {
-			if _, ok := indexed[path.Path]; ok {
-				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, path.Path, promotetypes.SkipReasonAlreadyIndexed))
+			if indexes, ok := existingByPath[path.Path]; ok {
+				path.Indexes = indexes
+				result.Skipped = append(result.Skipped, path)
 				continue
 			}
 			result.Indexed = append(result.Indexed, path)
@@ -175,7 +165,7 @@ func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes
 	}
 	skipped := make([]string, 0, len(result.Skipped))
 	for _, path := range result.Skipped {
-		skipped = append(skipped, path.Path+":"+path.Reason.StringValue())
+		skipped = append(skipped, path.Path)
 	}
 	m.settings.Logger().InfoContext(ctx, "indexed materialized paths", slog.String("signal", params.Signal), slog.Bool("dry_run", params.DryRun), slog.Int("indexed_count", len(indexed)), slog.Any("indexed", indexed), slog.Int("skipped_count", len(skipped)), slog.Any("skipped", skipped))
 

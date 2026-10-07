@@ -389,21 +389,16 @@ func TestIndexMaterializedPaths(t *testing.T) {
 	materializedKeys := []*telemetrytypes.TelemetryFieldKey{
 		{Name: "user.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
 		{Name: "tenant.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
-		{Name: "http.route", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
 		{Name: "retry.count", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeNumber, Indexes: columnIndex},
-		{Name: "session.550e8400-e29b-41d4-a716-446655440000", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
 		{Name: "k8s.pod.name", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextResource, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
 	}
-	skipped := []string{
-		"tenant.id:column_not_indexed",
-		"http.route:default_materialized",
-		"retry.count:not_string",
-		"session.550e8400-e29b-41d4-a716-446655440000:invalid_path",
-	}
+	userIDDDL := "`attributes.user.id_String_bloom_filter` attributes.user.id::String TYPE bloom_filter(0.01) GRANULARITY 64"
+	retryCountDDL := "`attributes.retry.count_Float64_bloom_filter` attributes.retry.count::Float64 TYPE bloom_filter(0.01) GRANULARITY 64"
 
 	testCases := []struct {
 		name        string
 		params      promotetypes.IndexMaterializedPathsParams
+		keys        []*telemetrytypes.TelemetryFieldKey
 		existing    []telemetrytypes.TelemetryFieldKeySkipIndex
 		wantIndexed []string
 		wantSkipped []string
@@ -413,29 +408,32 @@ func TestIndexMaterializedPaths(t *testing.T) {
 		{
 			name:        "DryRun_NoDDL",
 			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces", DryRun: true},
-			wantIndexed: []string{"user.id"},
-			wantSkipped: skipped,
+			keys:        materializedKeys,
+			wantIndexed: []string{"user.id", "retry.count"},
+			wantSkipped: []string{},
 		},
 		{
 			name:        "Run_IndexesBaseColumn",
 			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
-			wantIndexed: []string{"user.id"},
-			wantSkipped: skipped,
-			wantDDL:     []string{"`attributes.user.id_String_bloom_filter` attributes.user.id::String TYPE bloom_filter(0.01) GRANULARITY 64"},
+			keys:        materializedKeys,
+			wantIndexed: []string{"user.id", "retry.count"},
+			wantSkipped: []string{},
+			wantDDL:     []string{userIDDDL, retryCountDDL},
 		},
 		{
-			name:        "BloomAlreadyBuilt_Skipped",
+			name:        "AnyIndexBuilt_Skipped",
 			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
-			existing:    []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "bloom_filter(0.05)"}},
-			wantIndexed: []string{},
-			wantSkipped: append([]string{"user.id:already_indexed"}, skipped...),
-		},
-		{
-			name:        "OtherIndexBuilt_Skipped",
-			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
+			keys:        materializedKeys,
 			existing:    []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "ngrambf_v1(4, 1024, 2, 0)"}},
-			wantIndexed: []string{},
-			wantSkipped: append([]string{"user.id:already_indexed"}, skipped...),
+			wantIndexed: []string{"retry.count"},
+			wantSkipped: []string{"user.id"},
+			wantDDL:     []string{retryCountDDL},
+		},
+		{
+			name:    "CardinalPath_Rejected",
+			params:  promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
+			keys:    append([]*telemetrytypes.TelemetryFieldKey{{Name: "session.550e8400-e29b-41d4-a716-446655440000", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex}}, materializedKeys...),
+			wantErr: true,
 		},
 		{
 			name:    "LogsSignal_NoAttributeTarget_Rejected",
@@ -452,7 +450,7 @@ func TestIndexMaterializedPaths(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			ts := telemetrystoretest.New(telemetrystore.Config{}, sqlmock.QueryMatcherRegexp)
 			store := telemetrytypestest.NewMockMetadataStore()
-			store.MaterializedKeys = materializedKeys
+			store.MaterializedKeys = testCase.keys
 			store.LogsJSONIndexes = testCase.existing
 			m := NewModule(store, ts, factorytest.NewSettings())
 			for _, ddl := range testCase.wantDDL {
@@ -473,10 +471,10 @@ func TestIndexMaterializedPaths(t *testing.T) {
 			}
 			skipped := []string{}
 			for _, path := range result.Skipped {
-				skipped = append(skipped, path.Path+":"+path.Reason.StringValue())
+				skipped = append(skipped, path.Path)
 			}
 			assert.Equal(t, testCase.wantIndexed, indexed)
-			assert.ElementsMatch(t, testCase.wantSkipped, skipped)
+			assert.Equal(t, testCase.wantSkipped, skipped)
 			assert.NoError(t, ts.Mock().ExpectationsWereMet())
 		})
 	}

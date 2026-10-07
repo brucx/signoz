@@ -28,10 +28,8 @@ def test_index_materialized_paths(
     )
     assert resp.status_code == HTTPStatus.OK, resp.text
     indexed = {path["path"]: path["indexes"] for path in resp.json()["data"]["indexed"]}
-    skipped = {path["path"]: path["reason"] for path in resp.json()["data"]["skipped"]}
     assert indexed["materialized.probe"] == [{"fieldDataType": "string", "type": "bloom_filter(0.01)", "granularity": 64}]
-    assert skipped["materialized.unindexed_probe"] == "column_not_indexed"
-    assert skipped["http.route"] == "default_materialized"
+    assert "materialized.unindexed_probe" not in indexed
     assert not signoz.telemetrystore.conn.query(PROBE_INDEX_EXPRS_QUERY).result_rows
 
     resp = requests.post(
@@ -61,4 +59,4 @@ def test_index_materialized_paths(
     )
     assert resp.status_code == HTTPStatus.OK, resp.text
     assert "materialized.probe" not in {path["path"] for path in resp.json()["data"]["indexed"]}
-    assert {path["path"]: path["reason"] for path in resp.json()["data"]["skipped"]}["materialized.probe"] == "already_indexed"
+    assert "materialized.probe" in {path["path"] for path in resp.json()["data"]["skipped"]}

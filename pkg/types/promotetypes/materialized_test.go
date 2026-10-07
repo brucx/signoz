@@ -11,24 +11,36 @@ import (
 
 func TestNewMaterializedPromotePath(t *testing.T) {
 	testCases := []struct {
-		name    string
-		path    string
-		wantErr bool
+		name      string
+		key       *telemetrytypes.TelemetryFieldKey
+		wantIndex WrappedIndex
+		wantErr   bool
 	}{
 		{
-			name: "BarePath_DefaultIndex",
-			path: "user.id",
+			name:      "StringPath_StringIndex",
+			key:       &telemetrytypes.TelemetryFieldKey{Name: "user.id", FieldDataType: telemetrytypes.FieldDataTypeString},
+			wantIndex: WrappedIndex{FieldDataType: telemetrytypes.FieldDataTypeString, Type: "bloom_filter(0.01)", Granularity: 64, JSONDataType: telemetrytypes.String},
+		},
+		{
+			name:      "NumberPath_Float64Index",
+			key:       &telemetrytypes.TelemetryFieldKey{Name: "retry.count", FieldDataType: telemetrytypes.FieldDataTypeNumber},
+			wantIndex: WrappedIndex{FieldDataType: telemetrytypes.FieldDataTypeNumber, Type: "bloom_filter(0.01)", Granularity: 64, JSONDataType: telemetrytypes.Float64},
+		},
+		{
+			name:    "BoolPath_Rejected",
+			key:     &telemetrytypes.TelemetryFieldKey{Name: "user.active", FieldDataType: telemetrytypes.FieldDataTypeBool},
+			wantErr: true,
 		},
 		{
 			name:    "CardinalPath_Rejected",
-			path:    "session.550e8400-e29b-41d4-a716-446655440000",
+			key:     &telemetrytypes.TelemetryFieldKey{Name: "session.550e8400-e29b-41d4-a716-446655440000", FieldDataType: telemetrytypes.FieldDataTypeString},
 			wantErr: true,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			path, err := NewMaterializedPromotePath(NewTracesAttributesTarget(), testCase.path)
+			path, err := NewMaterializedPromotePath(NewTracesAttributesTarget(), testCase.key)
 			if testCase.wantErr {
 				assert.Error(t, err)
 				return
@@ -37,30 +49,10 @@ func TestNewMaterializedPromotePath(t *testing.T) {
 			assert.Equal(t, &PromotePath{
 				Signal:  "traces",
 				Context: "attribute",
-				Path:    testCase.path,
+				Path:    testCase.key.Name,
 				Promote: false,
-				Indexes: []WrappedIndex{{FieldDataType: telemetrytypes.FieldDataTypeString, Type: "bloom_filter(0.01)", Granularity: 64, JSONDataType: telemetrytypes.String}},
+				Indexes: []WrappedIndex{testCase.wantIndex},
 			}, path)
-		})
-	}
-}
-
-func TestIsDefaultMaterialized(t *testing.T) {
-	testCases := []struct {
-		name   string
-		target Target
-		path   string
-		want   bool
-	}{
-		{name: "TracesDefaultAttribute_Default", target: NewTracesAttributesTarget(), path: "http.route", want: true},
-		{name: "TracesGenAIAttribute_Default", target: NewTracesAttributesTarget(), path: "gen_ai.request.model", want: true},
-		{name: "TracesCustomAttribute_NotDefault", target: NewTracesAttributesTarget(), path: "user.id"},
-		{name: "LogsBodySamePath_NotDefault", target: NewLogsBodyTarget(), path: "http.route"},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			assert.Equal(t, testCase.want, testCase.target.IsDefaultMaterialized(testCase.path))
 		})
 	}
 }
