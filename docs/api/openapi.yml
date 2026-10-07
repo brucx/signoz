@@ -7679,21 +7679,13 @@ components:
           type: array
         skipped:
           items:
-            $ref: '#/components/schemas/PromotetypesSkippedMaterializedPath'
+            $ref: '#/components/schemas/PromotetypesPromotePath'
           nullable: true
           type: array
       required:
       - indexed
       - skipped
       type: object
-    PromotetypesMaterializedSkipReason:
-      enum:
-      - default_materialized
-      - not_string
-      - column_not_indexed
-      - invalid_path
-      - already_indexed
-      type: string
     PromotetypesPromotePath:
       properties:
         context:
@@ -7712,22 +7704,6 @@ components:
       - signal
       - context
       - path
-      type: object
-    PromotetypesSkippedMaterializedPath:
-      properties:
-        context:
-          type: string
-        path:
-          type: string
-        reason:
-          $ref: '#/components/schemas/PromotetypesMaterializedSkipReason'
-        signal:
-          type: string
-      required:
-      - signal
-      - context
-      - path
-      - reason
       type: object
     PromotetypesWrappedIndex:
       properties:
