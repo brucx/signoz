@@ -56,3 +56,27 @@ func TestNewMaterializedPromotePath(t *testing.T) {
 		})
 	}
 }
+
+func TestIndexMaterializedPathsParamsValidate(t *testing.T) {
+	testCases := []struct {
+		name    string
+		params  IndexMaterializedPathsParams
+		wantErr bool
+	}{
+		{name: "TracesSignal_Valid", params: IndexMaterializedPathsParams{Signal: "traces", DryRun: true}},
+		{name: "MissingSignal_Rejected", params: IndexMaterializedPathsParams{}, wantErr: true},
+		{name: "UnknownSignal_Rejected", params: IndexMaterializedPathsParams{Signal: "events"}, wantErr: true},
+		{name: "LogsSignal_NoAttributeTarget_Rejected", params: IndexMaterializedPathsParams{Signal: "logs"}, wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := testCase.params.Validate()
+			if testCase.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}

@@ -1,6 +1,7 @@
 package promotetypes
 
 import (
+	"github.com/SigNoz/signoz/pkg/errors"
 	"github.com/SigNoz/signoz/pkg/types/telemetrytypes"
 )
 
@@ -17,6 +18,14 @@ type IndexMaterializedPathsResult struct {
 type IndexMaterializedPathsParams struct {
 	Signal string `query:"signal" json:"signal" required:"true"`
 	DryRun bool   `query:"dryRun" json:"dryRun"`
+}
+
+func (p *IndexMaterializedPathsParams) Validate() error {
+	if p.Signal == "" {
+		return errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "signal is required")
+	}
+	_, err := p.Target()
+	return err
 }
 
 func (p *IndexMaterializedPathsParams) Target() (Target, error) {
