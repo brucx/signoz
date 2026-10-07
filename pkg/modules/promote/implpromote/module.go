@@ -109,64 +109,53 @@ func (m *module) listPromotedPaths(ctx context.Context, target promotetypes.Targ
 }
 
 func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes.IndexMaterializedPathsParams) (*promotetypes.IndexMaterializedPathsResult, error) {
-	filters := params.Filters()
-	keysBySignal := map[string][]*telemetrytypes.TelemetryFieldKey{}
+	target, err := params.Target()
+	if err != nil {
+		return nil, err
+	}
+
+	keys, err := m.metadataStore.GetMaterializedKeys(ctx, target.Entry.Signal)
+	if err != nil {
+		return nil, err
+	}
+
 	result := &promotetypes.IndexMaterializedPathsResult{Indexed: []*promotetypes.PromotePath{}, Skipped: []*promotetypes.SkippedMaterializedPath{}}
-	for _, target := range promotetypes.Targets() {
-		if target.Entry.FieldContext != telemetrytypes.FieldContextAttribute || !filters.MatchesTarget(target) {
+	paths := []*promotetypes.PromotePath{}
+	names := []string{}
+	for _, key := range keys {
+		if key.FieldContext != target.Entry.FieldContext {
 			continue
 		}
-
-		keys, ok := keysBySignal[target.Entry.Signal.StringValue()]
-		if !ok {
-			var err error
-			keys, err = m.metadataStore.GetMaterializedKeys(ctx, target.Entry.Signal)
+		switch {
+		case target.IsDefaultMaterialized(key.Name):
+			result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonDefaultMaterialized))
+		case key.FieldDataType != telemetrytypes.FieldDataTypeString:
+			result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonNotString))
+		case len(key.Indexes) == 0:
+			result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonColumnNotIndexed))
+		default:
+			path, err := promotetypes.NewMaterializedPromotePath(target, key.Name)
 			if err != nil {
-				return nil, err
-			}
-			keysBySignal[target.Entry.Signal.StringValue()] = keys
-		}
-
-		paths := []*promotetypes.PromotePath{}
-		names := []string{}
-		for _, key := range keys {
-			if key.FieldContext != target.Entry.FieldContext {
+				m.settings.Logger().WarnContext(ctx, "materialized path is not indexable", slog.String("path", key.Name), errors.Attr(err))
+				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonInvalidPath))
 				continue
 			}
-			switch {
-			case target.IsDefaultMaterialized(key.Name):
-				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonDefaultMaterialized))
-			case key.FieldDataType != telemetrytypes.FieldDataTypeString:
-				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonNotString))
-			case len(key.Indexes) == 0:
-				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonColumnNotIndexed))
-			default:
-				path, err := promotetypes.NewMaterializedPromotePath(target, key.Name)
-				if err != nil {
-					m.settings.Logger().WarnContext(ctx, "materialized path is not indexable", slog.String("path", key.Name), errors.Attr(err))
-					result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, key.Name, promotetypes.SkipReasonInvalidPath))
-					continue
-				}
-				paths = append(paths, path)
-				names = append(names, path.Path)
-			}
+			paths = append(paths, path)
+			names = append(names, path.Path)
 		}
-		if len(paths) == 0 {
-			continue
-		}
+	}
 
+	if len(paths) > 0 {
 		existing, err := m.metadataStore.ListJSONIndexes(ctx, target.JSONIndexLookup(), names...)
 		if err != nil {
 			return nil, err
 		}
-		bloomIndexed := map[string]struct{}{}
+		indexed := map[string]struct{}{}
 		for _, index := range existing {
-			if indexType, ok := (promotetypes.WrappedIndex{Type: index.IndexType}).SkipIndexType(); ok && indexType == promotetypes.IndexTypeBloomFilter {
-				bloomIndexed[index.Name] = struct{}{}
-			}
+			indexed[index.Name] = struct{}{}
 		}
 		for _, path := range paths {
-			if _, ok := bloomIndexed[path.Path]; ok {
+			if _, ok := indexed[path.Path]; ok {
 				result.Skipped = append(result.Skipped, promotetypes.NewSkippedMaterializedPath(target, path.Path, promotetypes.SkipReasonAlreadyIndexed))
 				continue
 			}
@@ -175,20 +164,20 @@ func (m *module) IndexMaterializedPaths(ctx context.Context, params promotetypes
 	}
 
 	if !params.DryRun && len(result.Indexed) > 0 {
-		if err := m.PromotePaths(ctx, result.Indexed...); err != nil {
+		if err := m.promotePaths(ctx, target, result.Indexed...); err != nil {
 			return nil, err
 		}
 	}
 
 	indexed := make([]string, 0, len(result.Indexed))
 	for _, path := range result.Indexed {
-		indexed = append(indexed, path.Signal+"."+path.Context+"."+path.Path)
+		indexed = append(indexed, path.Path)
 	}
 	skipped := make([]string, 0, len(result.Skipped))
 	for _, path := range result.Skipped {
-		skipped = append(skipped, path.Signal+"."+path.Context+"."+path.Path+":"+path.Reason.StringValue())
+		skipped = append(skipped, path.Path+":"+path.Reason.StringValue())
 	}
-	m.settings.Logger().InfoContext(ctx, "indexed materialized paths", slog.Bool("dry_run", params.DryRun), slog.Int("indexed_count", len(indexed)), slog.Any("indexed", indexed), slog.Int("skipped_count", len(skipped)), slog.Any("skipped", skipped))
+	m.settings.Logger().InfoContext(ctx, "indexed materialized paths", slog.String("signal", params.Signal), slog.Bool("dry_run", params.DryRun), slog.Int("indexed_count", len(indexed)), slog.Any("indexed", indexed), slog.Int("skipped_count", len(skipped)), slog.Any("skipped", skipped))
 
 	return result, nil
 }

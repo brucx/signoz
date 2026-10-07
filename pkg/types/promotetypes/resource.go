@@ -27,8 +27,8 @@ func PromotePathsResources(ec coretypes.ExtractorContext) ([]coretypes.ResourceW
 	return fieldResources(signals)
 }
 
-// FilteredSignalsResources falls back to every signal when the filters match none.
-func FilteredSignalsResources(ec coretypes.ExtractorContext) ([]coretypes.ResourceWithID, error) {
+// ListPromotedPathsResources resolves the field resources of the filtered signals, or of all when none match.
+func ListPromotedPathsResources(ec coretypes.ExtractorContext) ([]coretypes.ResourceWithID, error) {
 	filters := ListPromotedPathsFilters{}
 	if ec.Request != nil {
 		filters.Signal = ec.Request.URL.Query().Get("signal")
@@ -51,6 +51,18 @@ func FilteredSignalsResources(ec coretypes.ExtractorContext) ([]coretypes.Resour
 	}
 
 	return fieldResources(signals)
+}
+
+func IndexMaterializedPathsResources(ec coretypes.ExtractorContext) ([]coretypes.ResourceWithID, error) {
+	signalText := ""
+	if ec.Request != nil {
+		signalText = ec.Request.URL.Query().Get("signal")
+	}
+	signal, ok := telemetrytypes.SignalFromText(signalText)
+	if !ok {
+		return nil, errors.NewInvalidInputf(errors.CodeInvalidInput, "invalid signal: %s", signalText)
+	}
+	return fieldResources([]telemetrytypes.Signal{signal})
 }
 
 func fieldResources(signals []telemetrytypes.Signal) ([]coretypes.ResourceWithID, error) {

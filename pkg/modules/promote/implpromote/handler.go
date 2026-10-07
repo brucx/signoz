@@ -90,11 +90,6 @@ func (h *handler) IndexMaterializedPaths(w http.ResponseWriter, r *http.Request)
 		render.Error(w, err)
 		return
 	}
-	filters := params.Filters()
-	if err := filters.Validate(); err != nil {
-		render.Error(w, err)
-		return
-	}
 
 	paths, err := h.module.IndexMaterializedPaths(r.Context(), params)
 	if err != nil {

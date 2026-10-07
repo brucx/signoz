@@ -50,7 +50,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		Verb:      coretypes.VerbList,
 		Category:  coretypes.ActionCategoryDataAccess,
 		Selector:  coretypes.WildcardSelector,
-		Resources: promotetypes.FilteredSignalsResources,
+		Resources: promotetypes.ListPromotedPathsResources,
 	}))).Methods(http.MethodGet).GetError(); err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		ID:                  "IndexMaterializedPaths",
 		Tags:                []string{"promote"},
 		Summary:             "Index materialized paths",
-		Description:         "This endpoint indexes the JSON sub-columns of materialized paths whose columns are indexed and returns the indexed and skipped paths. Requires the update scope of each signal the filters select.",
+		Description:         "This endpoint indexes the JSON sub-columns of materialized paths whose columns are indexed and returns the indexed and skipped paths. Requires the update scope of the signal.",
 		Request:             nil,
 		RequestQuery:        new(promotetypes.IndexMaterializedPathsParams),
 		RequestContentType:  "",
@@ -72,7 +72,7 @@ func (provider *provider) addPromoteRoutes(router *mux.Router) error {
 		Verb:      coretypes.VerbUpdate,
 		Category:  coretypes.ActionCategoryConfigurationChange,
 		Selector:  coretypes.WildcardSelector,
-		Resources: promotetypes.FilteredSignalsResources,
+		Resources: promotetypes.IndexMaterializedPathsResources,
 	}))).Methods(http.MethodPost).GetError(); err != nil {
 		return err
 	}

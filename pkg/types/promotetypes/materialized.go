@@ -63,13 +63,12 @@ type IndexMaterializedPathsResult struct {
 }
 
 type IndexMaterializedPathsParams struct {
-	Signal  string `query:"signal" json:"signal"`
-	Context string `query:"context" json:"context"`
-	DryRun  bool   `query:"dryRun" json:"dryRun"`
+	Signal string `query:"signal" json:"signal" required:"true"`
+	DryRun bool   `query:"dryRun" json:"dryRun"`
 }
 
-func (p *IndexMaterializedPathsParams) Filters() ListPromotedPathsFilters {
-	return ListPromotedPathsFilters{Signal: p.Signal, Context: p.Context}
+func (p *IndexMaterializedPathsParams) Target() (Target, error) {
+	return NewTargetFromText(p.Signal, telemetrytypes.FieldContextAttribute.StringValue())
 }
 
 func (MaterializedSkipReason) Enum() []any {

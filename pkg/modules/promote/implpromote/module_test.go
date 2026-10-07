@@ -408,37 +408,43 @@ func TestIndexMaterializedPaths(t *testing.T) {
 		wantIndexed []string
 		wantSkipped []string
 		wantDDL     []string
+		wantErr     bool
 	}{
 		{
 			name:        "DryRun_NoDDL",
-			params:      promotetypes.IndexMaterializedPathsParams{DryRun: true},
+			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces", DryRun: true},
 			wantIndexed: []string{"user.id"},
 			wantSkipped: skipped,
 		},
 		{
 			name:        "Run_IndexesBaseColumn",
+			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
 			wantIndexed: []string{"user.id"},
 			wantSkipped: skipped,
 			wantDDL:     []string{"`attributes.user.id_String_bloom_filter` attributes.user.id::String TYPE bloom_filter(0.01) GRANULARITY 64"},
 		},
 		{
-			name:        "LogsFilter_NoAttributeTarget",
-			params:      promotetypes.IndexMaterializedPathsParams{Signal: "logs"},
-			wantIndexed: []string{},
-			wantSkipped: []string{},
-		},
-		{
 			name:        "BloomAlreadyBuilt_Skipped",
+			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
 			existing:    []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "bloom_filter(0.05)"}},
 			wantIndexed: []string{},
 			wantSkipped: append([]string{"user.id:already_indexed"}, skipped...),
 		},
 		{
-			name:        "OtherIndexBuilt_Indexed",
+			name:        "OtherIndexBuilt_Skipped",
+			params:      promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
 			existing:    []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "ngrambf_v1(4, 1024, 2, 0)"}},
-			wantIndexed: []string{"user.id"},
-			wantSkipped: skipped,
-			wantDDL:     []string{"`attributes.user.id_String_bloom_filter`"},
+			wantIndexed: []string{},
+			wantSkipped: append([]string{"user.id:already_indexed"}, skipped...),
+		},
+		{
+			name:    "LogsSignal_NoAttributeTarget_Rejected",
+			params:  promotetypes.IndexMaterializedPathsParams{Signal: "logs"},
+			wantErr: true,
+		},
+		{
+			name:    "MissingSignal_Rejected",
+			wantErr: true,
 		},
 	}
 
@@ -454,6 +460,10 @@ func TestIndexMaterializedPaths(t *testing.T) {
 			}
 
 			result, err := m.IndexMaterializedPaths(ctx, testCase.params)
+			if testCase.wantErr {
+				assert.Error(t, err)
+				return
+			}
 			require.NoError(t, err)
 
 			indexed := []string{}

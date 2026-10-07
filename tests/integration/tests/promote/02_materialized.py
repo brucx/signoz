@@ -22,7 +22,7 @@ def test_index_materialized_paths(
 
     resp = requests.post(
         signoz.self.host_configs["8080"].get(MATERIALIZED_PATH),
-        params={"dryRun": "true"},
+        params={"signal": "traces", "dryRun": "true"},
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )
@@ -40,12 +40,12 @@ def test_index_materialized_paths(
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )
-    assert resp.status_code == HTTPStatus.OK, resp.text
-    assert resp.json()["data"] == {"indexed": [], "skipped": []}
+    assert resp.status_code == HTTPStatus.BAD_REQUEST, resp.text
     assert not signoz.telemetrystore.conn.query(PROBE_INDEX_EXPRS_QUERY).result_rows
 
     resp = requests.post(
         signoz.self.host_configs["8080"].get(MATERIALIZED_PATH),
+        params={"signal": "traces"},
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )
@@ -55,6 +55,7 @@ def test_index_materialized_paths(
 
     resp = requests.post(
         signoz.self.host_configs["8080"].get(MATERIALIZED_PATH),
+        params={"signal": "traces"},
         headers={"Authorization": f"Bearer {token}"},
         timeout=30,
     )
