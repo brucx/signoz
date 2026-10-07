@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/SigNoz/signoz/pkg/factory/factorytest"
 	"github.com/SigNoz/signoz/pkg/telemetrystore"
 	"github.com/SigNoz/signoz/pkg/telemetrystore/telemetrystoretest"
 	"github.com/SigNoz/signoz/pkg/types/promotetypes"
@@ -66,7 +67,7 @@ func TestPromotePaths(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			store := telemetrytypestest.NewMockMetadataStore()
-			m := NewModule(store, nil)
+			m := NewModule(store, nil, factorytest.NewSettings())
 
 			err := m.PromotePaths(ctx, testCase.paths...)
 			if testCase.wantErr {
@@ -170,7 +171,7 @@ func TestPromotePathsCreatesIndexes(t *testing.T) {
 			if testCase.promoted != nil {
 				store.PromotedPathsMap = testCase.promoted
 			}
-			m := NewModule(store, ts)
+			m := NewModule(store, ts, factorytest.NewSettings())
 
 			ts.Mock().ExpectExec("ADD INDEX (.+)" + regexp.QuoteMeta(testCase.wantDDLColumn)).WillReturnError(nil)
 			require.NoError(t, m.PromotePaths(ctx, testCase.path))
@@ -363,7 +364,7 @@ func TestListPromotedPaths(t *testing.T) {
 			store := telemetrytypestest.NewMockMetadataStore()
 			store.PromotedPathsMap = testCase.promoted
 			store.LogsJSONIndexes = testCase.indexes
-			m := NewModule(store, nil)
+			m := NewModule(store, nil, factorytest.NewSettings())
 
 			paths, err := m.ListPromotedPaths(ctx, testCase.filters)
 			require.NoError(t, err)
@@ -384,41 +385,60 @@ func TestListPromotedPaths(t *testing.T) {
 
 func TestIndexMaterializedPaths(t *testing.T) {
 	ctx := context.Background()
+	columnIndex := []telemetrytypes.TelemetryFieldKeySkipIndex{{IndexType: "bloom_filter(0.01)", Granularity: 64}}
 	materializedKeys := []*telemetrytypes.TelemetryFieldKey{
-		{Name: "user.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
-		{Name: "http.route", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
-		{Name: "retry.count", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeNumber},
-		{Name: "k8s.pod.name", Signal: telemetrytypes.SignalLogs, FieldContext: telemetrytypes.FieldContextResource, FieldDataType: telemetrytypes.FieldDataTypeString},
-		{Name: "tenant", Signal: telemetrytypes.SignalLogs, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
+		{Name: "user.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
+		{Name: "tenant.id", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString},
+		{Name: "http.route", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
+		{Name: "retry.count", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeNumber, Indexes: columnIndex},
+		{Name: "session.550e8400-e29b-41d4-a716-446655440000", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextAttribute, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
+		{Name: "k8s.pod.name", Signal: telemetrytypes.SignalTraces, FieldContext: telemetrytypes.FieldContextResource, FieldDataType: telemetrytypes.FieldDataTypeString, Indexes: columnIndex},
+	}
+	skipped := []string{
+		"tenant.id:column_not_indexed",
+		"http.route:default_materialized",
+		"retry.count:not_string",
+		"session.550e8400-e29b-41d4-a716-446655440000:invalid_path",
 	}
 
 	testCases := []struct {
-		name      string
-		params    promotetypes.IndexMaterializedPathsParams
-		existing  []telemetrytypes.TelemetryFieldKeySkipIndex
-		wantPaths []string
-		wantDDL   []string
+		name        string
+		params      promotetypes.IndexMaterializedPathsParams
+		existing    []telemetrytypes.TelemetryFieldKeySkipIndex
+		wantIndexed []string
+		wantSkipped []string
+		wantDDL     []string
 	}{
 		{
-			name:      "DryRun_NoDDL",
-			params:    promotetypes.IndexMaterializedPathsParams{DryRun: true},
-			wantPaths: []string{"traces/attribute/user.id"},
+			name:        "DryRun_NoDDL",
+			params:      promotetypes.IndexMaterializedPathsParams{DryRun: true},
+			wantIndexed: []string{"user.id"},
+			wantSkipped: skipped,
 		},
 		{
-			name:      "Run_IndexesBaseColumns",
-			wantPaths: []string{"traces/attribute/user.id"},
-			wantDDL:   []string{"`attributes.user.id_String_bloom_filter` attributes.user.id::String TYPE bloom_filter(0.01) GRANULARITY 64"},
+			name:        "Run_IndexesBaseColumn",
+			wantIndexed: []string{"user.id"},
+			wantSkipped: skipped,
+			wantDDL:     []string{"`attributes.user.id_String_bloom_filter` attributes.user.id::String TYPE bloom_filter(0.01) GRANULARITY 64"},
 		},
 		{
-			name:      "SignalFilter_SkipsOtherSignals",
-			params:    promotetypes.IndexMaterializedPathsParams{Signal: "logs", DryRun: true},
-			wantPaths: []string{},
+			name:        "LogsFilter_NoAttributeTarget",
+			params:      promotetypes.IndexMaterializedPathsParams{Signal: "logs"},
+			wantIndexed: []string{},
+			wantSkipped: []string{},
 		},
 		{
-			name:      "IndexAlreadyBuilt_Skipped",
-			params:    promotetypes.IndexMaterializedPathsParams{Signal: "traces"},
-			existing:  []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "bloom_filter(0.05)"}},
-			wantPaths: []string{},
+			name:        "BloomAlreadyBuilt_Skipped",
+			existing:    []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "bloom_filter(0.05)"}},
+			wantIndexed: []string{},
+			wantSkipped: append([]string{"user.id:already_indexed"}, skipped...),
+		},
+		{
+			name:        "OtherIndexBuilt_Indexed",
+			existing:    []telemetrytypes.TelemetryFieldKeySkipIndex{{Name: "user.id", FieldContext: telemetrytypes.FieldContextAttribute, IndexType: "ngrambf_v1(4, 1024, 2, 0)"}},
+			wantIndexed: []string{"user.id"},
+			wantSkipped: skipped,
+			wantDDL:     []string{"`attributes.user.id_String_bloom_filter`"},
 		},
 	}
 
@@ -428,20 +448,25 @@ func TestIndexMaterializedPaths(t *testing.T) {
 			store := telemetrytypestest.NewMockMetadataStore()
 			store.MaterializedKeys = materializedKeys
 			store.LogsJSONIndexes = testCase.existing
-			m := NewModule(store, ts)
+			m := NewModule(store, ts, factorytest.NewSettings())
 			for _, ddl := range testCase.wantDDL {
 				ts.Mock().ExpectExec("ADD INDEX (.+)" + regexp.QuoteMeta(ddl)).WillReturnError(nil)
 			}
 
-			paths, err := m.IndexMaterializedPaths(ctx, testCase.params)
+			result, err := m.IndexMaterializedPaths(ctx, testCase.params)
 			require.NoError(t, err)
 
-			got := []string{}
-			for _, path := range paths {
+			indexed := []string{}
+			for _, path := range result.Indexed {
 				assert.False(t, path.Promote)
-				got = append(got, path.Signal+"/"+path.Context+"/"+path.Path)
+				indexed = append(indexed, path.Path)
 			}
-			assert.Equal(t, testCase.wantPaths, got)
+			skipped := []string{}
+			for _, path := range result.Skipped {
+				skipped = append(skipped, path.Path+":"+path.Reason.StringValue())
+			}
+			assert.Equal(t, testCase.wantIndexed, indexed)
+			assert.ElementsMatch(t, testCase.wantSkipped, skipped)
 			assert.NoError(t, ts.Mock().ExpectationsWereMet())
 		})
 	}
