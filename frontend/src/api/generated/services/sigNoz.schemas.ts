@@ -9425,17 +9425,13 @@ export interface PrometheusSuccessResponseSchemaDTO {
 
 export interface PromotetypesIndexMaterializedPathsParamsDTO {
 	/**
-	 * @type string
-	 */
-	context?: string;
-	/**
 	 * @type boolean
 	 */
 	dryRun?: boolean;
 	/**
 	 * @type string
 	 */
-	signal?: string;
+	signal: string;
 }
 
 export interface PromotetypesWrappedIndexDTO {
@@ -12658,12 +12654,7 @@ export type IndexMaterializedPathsParams = {
 	 * @type string
 	 * @description undefined
 	 */
-	signal?: string;
-	/**
-	 * @type string
-	 * @description undefined
-	 */
-	context?: string;
+	signal: string;
 	/**
 	 * @type boolean
 	 * @description undefined

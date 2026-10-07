@@ -7663,12 +7663,12 @@ components:
       type: object
     PromotetypesIndexMaterializedPathsParams:
       properties:
-        context:
-          type: string
         dryRun:
           type: boolean
         signal:
           type: string
+      required:
+      - signal
       type: object
     PromotetypesIndexMaterializedPathsResult:
       properties:
@@ -13511,15 +13511,12 @@ paths:
       deprecated: false
       description: This endpoint indexes the JSON sub-columns of materialized paths
         whose columns are indexed and returns the indexed and skipped paths. Requires
-        the update scope of each signal the filters select.
+        the update scope of the signal.
       operationId: IndexMaterializedPaths
       parameters:
       - in: query
         name: signal
-        schema:
-          type: string
-      - in: query
-        name: context
+        required: true
         schema:
           type: string
       - in: query

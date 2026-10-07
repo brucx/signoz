@@ -234,12 +234,12 @@ export const usePromotePaths = <
 	return useMutation(getPromotePathsMutationOptions(options));
 };
 /**
- * This endpoint indexes the JSON sub-columns of materialized paths whose columns are indexed and returns the indexed and skipped paths. Requires the update scope of each signal the filters select.
+ * This endpoint indexes the JSON sub-columns of materialized paths whose columns are indexed and returns the indexed and skipped paths. Requires the update scope of the signal.
  * @summary Index materialized paths
  */
 export const indexMaterializedPaths = (
+	params: IndexMaterializedPathsParams,
 	promotetypesIndexMaterializedPathsParamsDTO?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>,
-	params?: IndexMaterializedPathsParams,
 	signal?: AbortSignal,
 ) => {
 	return GeneratedAPIInstance<IndexMaterializedPaths200>({
@@ -260,8 +260,8 @@ export const getIndexMaterializedPathsMutationOptions = <
 		Awaited<ReturnType<typeof indexMaterializedPaths>>,
 		TError,
 		{
+			params: IndexMaterializedPathsParams;
 			data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
-			params?: IndexMaterializedPathsParams;
 		},
 		TContext
 	>;
@@ -269,8 +269,8 @@ export const getIndexMaterializedPathsMutationOptions = <
 	Awaited<ReturnType<typeof indexMaterializedPaths>>,
 	TError,
 	{
+		params: IndexMaterializedPathsParams;
 		data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
-		params?: IndexMaterializedPathsParams;
 	},
 	TContext
 > => {
@@ -286,13 +286,13 @@ export const getIndexMaterializedPathsMutationOptions = <
 	const mutationFn: MutationFunction<
 		Awaited<ReturnType<typeof indexMaterializedPaths>>,
 		{
+			params: IndexMaterializedPathsParams;
 			data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
-			params?: IndexMaterializedPathsParams;
 		}
 	> = (props) => {
-		const { data, params } = props ?? {};
+		const { params, data } = props ?? {};
 
-		return indexMaterializedPaths(data, params);
+		return indexMaterializedPaths(params, data);
 	};
 
 	return { mutationFn, ...mutationOptions };
@@ -318,8 +318,8 @@ export const useIndexMaterializedPaths = <
 		Awaited<ReturnType<typeof indexMaterializedPaths>>,
 		TError,
 		{
+			params: IndexMaterializedPathsParams;
 			data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
-			params?: IndexMaterializedPathsParams;
 		},
 		TContext
 	>;
@@ -327,8 +327,8 @@ export const useIndexMaterializedPaths = <
 	Awaited<ReturnType<typeof indexMaterializedPaths>>,
 	TError,
 	{
+		params: IndexMaterializedPathsParams;
 		data?: BodyType<PromotetypesIndexMaterializedPathsParamsDTO>;
-		params?: IndexMaterializedPathsParams;
 	},
 	TContext
 > => {
