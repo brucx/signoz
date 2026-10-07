@@ -7670,6 +7670,30 @@ components:
         signal:
           type: string
       type: object
+    PromotetypesIndexMaterializedPathsResult:
+      properties:
+        indexed:
+          items:
+            $ref: '#/components/schemas/PromotetypesPromotePath'
+          nullable: true
+          type: array
+        skipped:
+          items:
+            $ref: '#/components/schemas/PromotetypesSkippedMaterializedPath'
+          nullable: true
+          type: array
+      required:
+      - indexed
+      - skipped
+      type: object
+    PromotetypesMaterializedSkipReason:
+      enum:
+      - default_materialized
+      - not_string
+      - column_not_indexed
+      - invalid_path
+      - already_indexed
+      type: string
     PromotetypesPromotePath:
       properties:
         context:
@@ -7688,6 +7712,22 @@ components:
       - signal
       - context
       - path
+      type: object
+    PromotetypesSkippedMaterializedPath:
+      properties:
+        context:
+          type: string
+        path:
+          type: string
+        reason:
+          $ref: '#/components/schemas/PromotetypesMaterializedSkipReason'
+        signal:
+          type: string
+      required:
+      - signal
+      - context
+      - path
+      - reason
       type: object
     PromotetypesWrappedIndex:
       properties:
@@ -13470,7 +13510,8 @@ paths:
     post:
       deprecated: false
       description: This endpoint indexes the JSON sub-columns of materialized paths
-        and returns them. Requires the update scope of each signal the filters select.
+        whose columns are indexed and returns the indexed and skipped paths. Requires
+        the update scope of each signal the filters select.
       operationId: IndexMaterializedPaths
       parameters:
       - in: query
@@ -13497,10 +13538,7 @@ paths:
               schema:
                 properties:
                   data:
-                    items:
-                      $ref: '#/components/schemas/PromotetypesPromotePath'
-                    nullable: true
-                    type: array
+                    $ref: '#/components/schemas/PromotetypesIndexMaterializedPathsResult'
                   status:
                     type: string
                 required:

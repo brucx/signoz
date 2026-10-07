@@ -234,7 +234,7 @@ export const usePromotePaths = <
 	return useMutation(getPromotePathsMutationOptions(options));
 };
 /**
- * This endpoint indexes the JSON sub-columns of materialized paths and returns them. Requires the update scope of each signal the filters select.
+ * This endpoint indexes the JSON sub-columns of materialized paths whose columns are indexed and returns the indexed and skipped paths. Requires the update scope of each signal the filters select.
  * @summary Index materialized paths
  */
 export const indexMaterializedPaths = (

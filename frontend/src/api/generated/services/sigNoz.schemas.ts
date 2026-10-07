@@ -9473,6 +9473,40 @@ export interface PromotetypesPromotePathDTO {
 	signal: string;
 }
 
+export enum PromotetypesMaterializedSkipReasonDTO {
+	default_materialized = 'default_materialized',
+	not_string = 'not_string',
+	column_not_indexed = 'column_not_indexed',
+	invalid_path = 'invalid_path',
+	already_indexed = 'already_indexed',
+}
+export interface PromotetypesSkippedMaterializedPathDTO {
+	/**
+	 * @type string
+	 */
+	context: string;
+	/**
+	 * @type string
+	 */
+	path: string;
+	reason: PromotetypesMaterializedSkipReasonDTO;
+	/**
+	 * @type string
+	 */
+	signal: string;
+}
+
+export interface PromotetypesIndexMaterializedPathsResultDTO {
+	/**
+	 * @type array,null
+	 */
+	indexed: PromotetypesPromotePathDTO[] | null;
+	/**
+	 * @type array,null
+	 */
+	skipped: PromotetypesSkippedMaterializedPathDTO[] | null;
+}
+
 export interface Querybuildertypesv5AggregationMetaDTO {
 	/**
 	 * @type array
@@ -12638,10 +12672,7 @@ export type IndexMaterializedPathsParams = {
 };
 
 export type IndexMaterializedPaths200 = {
-	/**
-	 * @type array,null
-	 */
-	data: PromotetypesPromotePathDTO[] | null;
+	data: PromotetypesIndexMaterializedPathsResultDTO;
 	/**
 	 * @type string
 	 */
