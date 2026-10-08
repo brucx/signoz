@@ -9,6 +9,8 @@ import TanStackTable, { TableColumnDef } from 'components/TanStackTableView';
 import { ExpandButtonWrapper } from 'container/InfraMonitoringK8sV2/components';
 
 import ColumnHeader from '../Base/ColumnHeader';
+import ClickableStatusBadge from '../Base/components/StatusFilterCells/ClickableStatusBadge';
+import ClickableStatusCounts from '../Base/components/StatusFilterCells/ClickableStatusCounts';
 import EntityGroupHeader from '../Base/EntityGroupHeader';
 import K8sGroupCell from '../Base/K8sGroupCell';
 import { formatBytes } from '../commonUtils';
@@ -182,9 +184,12 @@ export const k8sContainerColumnsConfig: ContainerTableColumnConfig[] = [
 			}
 
 			return (
-				<Badge color={CONTAINER_STATUS_COLORS[row.status]} variant="outline">
-					{CONTAINER_STATUS_LABELS[row.status]}
-				</Badge>
+				<ClickableStatusBadge
+					color={CONTAINER_STATUS_COLORS[row.status]}
+					label={CONTAINER_STATUS_LABELS[row.status]}
+					status={row.status}
+					kind="container"
+				/>
 			);
 		},
 	},
@@ -205,7 +210,8 @@ export const k8sContainerColumnsConfig: ContainerTableColumnConfig[] = [
 				return <TextNoData type="tanstack" />;
 			}
 			return (
-				<GroupedStatusCounts
+				<ClickableStatusCounts
+					kind="container"
 					items={getContainerStatusItems(row.containerCountsByStatus)}
 					rowId={rowId}
 				/>
