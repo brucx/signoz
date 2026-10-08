@@ -66,6 +66,8 @@ export interface CustomMultiSelectProps extends Omit<
 	maxTagTextLength?: number;
 	showIncompleteDataMessage?: boolean;
 	showLabels?: boolean;
+	/** Keep options in their given order instead of hoisting selected ones to the top. */
+	preserveOptionOrder?: boolean;
 	enableRegexOption?: boolean;
 	isDynamicVariable?: boolean;
 	showRetryButton?: boolean;

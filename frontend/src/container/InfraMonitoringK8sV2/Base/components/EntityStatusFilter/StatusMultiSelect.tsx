@@ -70,6 +70,8 @@ function StatusMultiSelect<T extends string>({
 				options={options}
 				value={value}
 				showSearch
+				showLabels
+				preserveOptionOrder
 				maxTagCount={1}
 				maxTagTextLength={12}
 				maxTagPlaceholder={(omitted): JSX.Element => (
