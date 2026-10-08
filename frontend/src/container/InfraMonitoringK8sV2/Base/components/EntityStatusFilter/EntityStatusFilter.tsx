@@ -64,7 +64,7 @@ function EntityStatusFilter(): JSX.Element | null {
 		return (
 			<div className={styles.statusFilterGroup}>
 				<StatusMultiSelect
-					label="Readiness"
+					label="Status"
 					entity={InfraMonitoringEntity.NODES}
 					filterKey="node_readiness"
 					options={NODE_READINESS_FILTER_OPTIONS}
