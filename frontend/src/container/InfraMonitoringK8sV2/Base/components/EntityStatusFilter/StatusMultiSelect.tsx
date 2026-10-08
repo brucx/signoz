@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { CustomMultiSelect } from 'components/NewSelect';
+import OverflowValuesTooltip from 'components/OverflowValuesTooltip/OverflowValuesTooltip';
 import { OptionData } from 'components/NewSelect/types';
 import { InfraMonitoringEntity } from 'container/InfraMonitoringK8sV2/constants';
 import { useInfraMonitoringPageListing } from 'container/InfraMonitoringK8sV2/hooks';
@@ -71,6 +72,13 @@ function StatusMultiSelect<T extends string>({
 				showSearch
 				maxTagCount={1}
 				maxTagTextLength={12}
+				maxTagPlaceholder={(omitted): JSX.Element => (
+					<OverflowValuesTooltip
+						values={omitted.map((item) =>
+							typeof item.label === 'string' ? item.label : String(item.value ?? ''),
+						)}
+					/>
+				)}
 				placeholder={label}
 				onChange={(next): void => {
 					handleChange(next);
